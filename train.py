@@ -35,7 +35,7 @@ def arg_parser():
                         help='provide split ratio for train/test split')
     parser.add_argument('--epoch', default=10, type=int,
                         help='How many epochs do you want to train your model')
-    parser.add_argument('--', default=0.01, type=float,
+    parser.add_argument('--lr', default=0.01, type=float,
                         help='provide learning rate here to train your model')
     parser.add_argument('--print_step', default=40, type=int,
                         help='provide print step to print training stats')
@@ -64,7 +64,7 @@ if __name__ == "__main__":
                                                                                          len(val_dataloader)))
 
     model = model()
-    opt = torch.optim.sgd(model.parameters, lr = 0.01)
+    opt = torch.optim.sgd(model.parameters, lr = args.lr)
     criterion = torch.nn.CrossEntropyLoss().cuda(gpu_ids[0])
     cudnn.benchmark = True
 
