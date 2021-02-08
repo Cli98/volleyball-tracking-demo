@@ -8,7 +8,7 @@ import numpy as np
 
 
 class Volleyball_loader(data.Dataset):
-    def __init__(self, root, affix, scale=None, mode="train", split_ratio=0.1, seed=2020):
+    def __init__(self, root, affix, scale=True, mode="train", split_ratio=0.1, seed=2020):
         self.root = root
         self.image_list = None
         self.affix = affix

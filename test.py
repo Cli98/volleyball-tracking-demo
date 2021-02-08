@@ -30,7 +30,7 @@ if __name__ == "__main__":
     # At the start we setup model for inference purpose
     # Since we inference image frame by frame, no dataloader is required here.
     # We send all samples to gpu id 0 for inference, if enabled
-    inference_model = model(3, 32, 64, 32, 2, args.batch_size)
+    inference_model = model(3, 32, 64, 32, 2)
     opt = torch.optim.SGD(inference_model.parameters(), lr=lr)
     cudnn.benchmark = True
     criterion = torch.nn.CrossEntropyLoss()
@@ -70,7 +70,8 @@ if __name__ == "__main__":
         mask = cv2.GaussianBlur(mask, (7, 7), 0)
         ret, mask = cv2.threshold(mask, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
         # TODO: after complete processing, update cnt here
-        path_tracker, prev_bounding_box, bounding_box, frame_count = generate_crop()
+        path_tracker, prev_bounding_box, bounding_box, frame_count = generate_crop(mask, frame, scale, model,
+                                                                                   frame_count, args.batch_size)
         pic = draw_ball_path(frame, bounding_box, prev_bounding_box)
 
         # Generate tracking result

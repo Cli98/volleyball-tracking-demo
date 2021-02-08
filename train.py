@@ -60,7 +60,7 @@ if __name__ == "__main__":
     print("Total number of training samples are {} and validation samples are {}".format(len(train_dataloader),
                                                                                          len(val_dataloader)))
 
-    model = model(3, 32, 64, 32, 2, args.batch_size)
+    model = model(3, 32, 64, 32, 2)
     opt = torch.optim.SGD(model.parameters(), lr = args.lr)
     criterion = torch.nn.CrossEntropyLoss()
     cudnn.benchmark = True
@@ -99,12 +99,11 @@ if __name__ == "__main__":
             param_group['lr'] = lr
 
         for i, (pic, target) in enumerate(train_dataloader):
-            print("shape of pic:", pic.shape)
             if args.gpu_num>0:
-
                 pic = pic.cuda(gpu_ids[0])
                 target = target.cuda(gpu_ids[0])
-            output = model(pic)
+
+            output = model(pic.float(), pic.shape[0])
             pred = torch.argmax(output, dim=1)
 
             loss = criterion(output, target)
@@ -125,20 +124,22 @@ if __name__ == "__main__":
             if args.gpu_num>0:
                 pic = pic.cuda(gpu_ids[0])
                 target = target.cuda(gpu_ids[0])
-            output = model(pic)
+            output = model(pic.float(), 1)
             pred = torch.argmax(output, dim=1)
 
             loss = criterion(output, target)
             val_epoch_loss += loss
-            acc = pred.eq(target).sum().float().item()/args.batch_size
+            acc = pred.eq(target).sum().float().item()
             val_epoch_acc += acc
         if current_best_acc<val_epoch_acc:
             save_dict = {
                 "state_dict":model.state_dict(),
                 "optimizer":opt.state_dict()
             }
-            torch.save(os.path.join(args.checkpoint_path))
-        print("validate epoch {} loss : {:.2f} , acc : {:.2f}".format(epoch, val_epoch_loss, val_epoch_acc))
+            torch.save(save_dict, os.path.join(args.checkpoint_path,
+                                               "model_epoch_{}.pth.tar".format(epoch)))
+        print("validate epoch {} loss : {:.2f} , acc : {:.2f}".
+              format(epoch, val_epoch_loss, val_epoch_acc/len(val_dataloader)))
 
 
 

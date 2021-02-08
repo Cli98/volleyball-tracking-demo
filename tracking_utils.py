@@ -1,6 +1,7 @@
 import cv2
 import torch
 from volleyball import volleyball
+import numpy as np
 
 
 def process_volleyball(path_tracker, bounding_box, prev_bounding_box, frame_count, x, y, r):
@@ -36,7 +37,7 @@ def process_element(path_tracker, frame_count, x, y):
 
 
 
-def generate_crop(mask, frame, scale, model, cnt):
+def generate_crop(mask, frame, scale, model, cnt, bz):
     contours, _ = cv2.findContours(mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
     # Here bounding_box is a collection of points for tracking purpose
     bounding_box, prev_bounding_box, path_tracker = None, None, []
@@ -66,7 +67,8 @@ def generate_crop(mask, frame, scale, model, cnt):
         cut_f = frame[ry: ry + rh, rx: rx + rw]
         cut_c = cv2.bitwise_and(cut_f, cut_f, mask=cut_m)
         cut_c = cv2.resize(cut_c, scale, interpolation = cv2.INTER_CUBIC)
-        output = model(cut_c)
+        cut_c = torch.from_numpy(np.transpose(cut_c, [2,0,1])).float()
+        output = model(cut_c, 1)
         pred = torch.argmax(output, dim=1)
         if pred == 1:
             # if we detect a ball, wrap up with bbox/circle
