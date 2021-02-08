@@ -7,9 +7,6 @@ import torch.backends.cudnn as cudnn
 import argparse
 import os
 
-#TODO: Test your dataloader before you run it
-#TODO: adjust learning rate
-
 
 def arg_parser():
     parser = argparse.ArgumentParser(description='PyTorch volleyball project')
@@ -33,7 +30,7 @@ def arg_parser():
                         help='provide width here if you need to resize')
     parser.add_argument('--split_ratio', default=0.1, type=float,
                         help='provide split ratio for train/test split')
-    parser.add_argument('--epoch', default=10, type=int,
+    parser.add_argument('--epochs', default=10, type=int,
                         help='How many epochs do you want to train your model')
     parser.add_argument('--lr', default=0.01, type=float,
                         help='provide learning rate here to train your model')
@@ -57,15 +54,15 @@ if __name__ == "__main__":
     # General setup
     gpu_ids = []
     train_dataset = Volleyball_loader(args.root, args.affix, scale=scale, mode="train", split_ratio=args.split_ratio)
-    train_dataloader = torch.utils.data.Dataloader(train_dataset, batch_size = args.batch_size, shuffle = True)
+    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size = args.batch_size, shuffle = True)
     val_dataset = Volleyball_loader(args.root, args.affix, scale=scale, mode="val", split_ratio=args.split_ratio)
-    val_dataloader = torch.utils.data.Dataloader(val_dataset, batch_size = 1, shuffle = True)
+    val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size = 1, shuffle = True)
     print("Total number of training samples are {} and validation samples are {}".format(len(train_dataloader),
                                                                                          len(val_dataloader)))
 
-    model = model()
-    opt = torch.optim.sgd(model.parameters, lr = args.lr)
-    criterion = torch.nn.CrossEntropyLoss().cuda(gpu_ids[0])
+    model = model(3, 32, 64, 32, 2, args.batch_size)
+    opt = torch.optim.SGD(model.parameters(), lr = args.lr)
+    criterion = torch.nn.CrossEntropyLoss()
     cudnn.benchmark = True
 
     if args.resume:
@@ -76,11 +73,14 @@ if __name__ == "__main__":
             opt.load(checkpoint['optimizer'])
         else:
             print("The requested checkpoint is not available!")
+    else:
+        print("No checkpoint has been reloaded!")
 
     if torch.cuda.is_available() and args.gpu_num>0:
         gpu_ids = [i for i in range(args.gpu_num)]
         model.to(gpu_ids[0])
         model = torch.nn.DataParallel(model, gpu_ids)
+        criterion = criterion.cuda(gpu_ids[0])
     else:
         print("GPU is not available or not specified. Run with CPU mode")
 
@@ -99,7 +99,9 @@ if __name__ == "__main__":
             param_group['lr'] = lr
 
         for i, (pic, target) in enumerate(train_dataloader):
+            print("shape of pic:", pic.shape)
             if args.gpu_num>0:
+
                 pic = pic.cuda(gpu_ids[0])
                 target = target.cuda(gpu_ids[0])
             output = model(pic)

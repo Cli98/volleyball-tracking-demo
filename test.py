@@ -10,6 +10,7 @@ from tracking_utils import generate_crop
 from Visual_utils import draw_ball_path
 
 
+#TODO: add args for test.py
 if __name__ == "__main__":
     # list all required variable below
     args = None
@@ -29,9 +30,10 @@ if __name__ == "__main__":
     # At the start we setup model for inference purpose
     # Since we inference image frame by frame, no dataloader is required here.
     # We send all samples to gpu id 0 for inference, if enabled
-    inference_model = model()
-    opt = torch.optim.sgd(inference_model.parameters, lr=lr)
+    inference_model = model(3, 32, 64, 32, 2, args.batch_size)
+    opt = torch.optim.SGD(inference_model.parameters(), lr=lr)
     cudnn.benchmark = True
+    criterion = torch.nn.CrossEntropyLoss()
     inference_model.eval()
     if checkpoint_path:
         if os.path.isfile(checkpoint_path):
@@ -45,7 +47,14 @@ if __name__ == "__main__":
     else:
         print("No checkpoint loaded!")
         
-        
+    if torch.cuda.is_available() and args.gpu_num>0:
+        gpu_ids = [i for i in range(args.gpu_num)]
+        model.to(gpu_ids[0])
+        model = torch.nn.DataParallel(model, gpu_ids)
+        criterion = criterion.cuda(gpu_ids[0])
+    else:
+        print("GPU is not available or not specified. Run with CPU mode")
+
     # Conduct preprocessing below
     vs = cv2.VideoCapture(video_path)
     backSub = cv2.createBackgroundSubtractorMOG2()

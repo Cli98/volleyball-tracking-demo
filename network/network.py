@@ -2,22 +2,22 @@ import torch
 import torch.nn as nn
 
 class model(nn.Module):
-    def __init__(self, in_channel, mid_channel, out_channel, hidden_num, class_num):
+    def __init__(self, in_channel, mid_channel, out_channel, hidden_num, class_num, batch_size):
         super(model, self).__init__()
         self.conv1 = nn.Conv2d(in_channel, mid_channel, kernel_size = 3, padding = 1, bias = True)
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
         self.bn1 = nn.BatchNorm2d(mid_channel)
-        self.conv2 = nn.Conv2d(in_channel, mid_channel)
+        self.conv2 = nn.Conv2d(in_channel, mid_channel, kernel_size = 3, padding = 1, bias = True)
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
         self.bn2 = nn.BatchNorm2d(out_channel)
         self.activation = nn.ReLU(inplace=True)
-        self.flatten = nn.Flatten()
         self.dropout1 = nn.Dropout(0.2)
         self.dense1 = nn.Linear(8024, hidden_num)
         self.dense2 = nn.Linear(hidden_num, class_num)
         self.softmax = nn.Softmax()
         self.need_init = [self.conv1, self.bn1, self.conv2, self.bn2, self.dense1, self.dense2]
         self.init_type = "normal"
+        self.batch_size = batch_size
 
     def forward(self, x):
         conv1 = self.conv1(x)
@@ -29,7 +29,7 @@ class model(nn.Module):
         relu2 = self.activation(bn2)
         pool2 = self.pool2(relu2)
 
-        dense_input = self.flatten(pool2)
+        dense_input = pool2.view(self.batch_size,-1)
         dense1 = self.dense1(dense_input)
         dense1 = self.activation(dense1)
         dropout1 = self.dropout1(dense1)

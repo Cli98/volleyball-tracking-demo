@@ -4,6 +4,7 @@ import os
 from glob import glob
 import cv2
 from sklearn.model_selection import train_test_split
+import numpy as np
 
 
 class Volleyball_loader(data.Dataset):
@@ -25,8 +26,8 @@ class Volleyball_loader(data.Dataset):
         img_path, cid = self.image_list[index]
         image = cv2.imread(img_path)
         if self.need_resize:
-            image = cv2.resize(image, self.target_width, self.target_height, cv2.INTER_CUBIC)
-        return image, cid
+            image = cv2.resize(image, (self.target_width, self.target_height), cv2.INTER_CUBIC)
+        return torch.from_numpy(np.transpose(image, [2,0,1])), torch.tensor(cid)
 
     def __len__(self):
         return len(self.image_list)
