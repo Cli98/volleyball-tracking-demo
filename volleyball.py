@@ -13,6 +13,9 @@ class volleyball:
         self.next_x = -1
         self.next_y = -1
 
+    def __len__(self):
+        return len(self.coord)
+
     def compute_dist(self, idx1, idx2):
         dx = self.coord[idx1][0] - self.coord[idx2][0]
         dy = self.coord[idx1][1] - self.coord[idx2][1]
@@ -29,10 +32,11 @@ class volleyball:
         return distance<self.R, distance
 
     def add(self, array):
+        # Once we call this function, we shoudl have at least one point.
         x, y, r, a = array
         self.coord.append([x, y])
         self.property.append([r, a])
-        if len(self.coord) >= 1:
+        if len(self.coord) > 2:
             dx1, dy1 = self.coord[-1][0] - self.coord[-2][0], self.coord[-1][1] - self.coord[-2][1]
             dx2, dy2 = self.coord[-2][0] - self.coord[-3][0], self.coord[-2][1] - self.coord[-3][1]
             d1 = self.compute_dist(-1, -2)
@@ -42,6 +46,8 @@ class volleyball:
                 self.status = 2
             else:
                 self.status = 1
+        else:
+            self.status = 2
 
     def predict(self):
         # Project next point given history

@@ -5,16 +5,16 @@ import numpy as np
 
 
 def process_volleyball(path_tracker, bounding_box, prev_bounding_box, frame_count, x, y, r):
-    ball_connected = process_element(path_tracker, frame_count, x, y)
-    if not ball_connected:
+    bounding_box = process_element(path_tracker, frame_count, x, y)
+    if not bounding_box:
         # No element in current tracking task
-        path_tracker.append(volleyball(x, y, r, frame_count))
-        return
-    bounding_box.add(x, y, r, frame_count)
+        path_tracker.append(volleyball([x, y, r, frame_count]))
+        return [path_tracker, None, None]
+    bounding_box.add([x, y, r, frame_count])
     if bounding_box.status == 2:
-        if not prev_bounding_box or len(bounding_box.pts) > len(prev_bounding_box.pts):
+        if not prev_bounding_box or len(bounding_box.coord) > len(prev_bounding_box.coord):
             prev_bounding_box = bounding_box
-    return path_tracker, prev_bounding_box, bounding_box
+    return [path_tracker, prev_bounding_box, bounding_box]
 
 
 def process_element(path_tracker, frame_count, x, y):
@@ -22,7 +22,7 @@ def process_element(path_tracker, frame_count, x, y):
     for vball in path_tracker:
         status, distance = vball.fit(-1, x, y)
         if status:
-            if frame_count - vball.frame_count<=4:
+            if frame_count - vball.frame_count<=10:
                 redicted_array.append([vball, distance])
             elif vball.status == 1:
                 static_array.append([vball, distance])
@@ -37,26 +37,30 @@ def process_element(path_tracker, frame_count, x, y):
 
 
 
-def generate_crop(mask, frame, scale, model, cnt, bz):
-    contours, _ = cv2.findContours(mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+def generate_crop(mask, frame, scale, model, cnt, bounding_box, prev_bounding_box, path_tracker):
+    _, contours, _ = cv2.findContours(mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
     # Here bounding_box is a collection of points for tracking purpose
-    bounding_box, prev_bounding_box, path_tracker = None, None, []
+    # print(type(contours), len(contours))
     for contour in contours:
         # Check if initial crops suitable, the next check will guess if the crops are targets.
+        #print(type(contour), contour.shape)
         rx, ry, rw, rh = cv2.boundingRect(contour)
         mn = min(rw, rh)
         mx = max(rw, rh)
         r = mx / mn
+        #print(cnt, mn, mx, r)
         if mn < 10 or mx > 40 or r > 1.5:
             continue
+
         cut_m = mask[ry: ry + rh, rx: rx + rw]
         # coord of cut_m: 0, 0, rh, rw
         # Check the mask and remove background crops as much as possible
         # instead of picking highest
-        dy = 3.0/5*rh
-        dx = 3.0/5*rw
-        m_sub_x = cut_m[:rh+dy, :]
-        m_sub_y = cut_m[:, :rw+dx]
+        dy = 2.0/5*rh
+        dx = 2.0/5*rw
+
+        m_sub_x = cut_m[:int(rh+dy), :]
+        m_sub_y = cut_m[: ,:int(rw+dx)]
         pixel_x = cv2.countNonZero(m_sub_x)
         pixel_y = cv2.countNonZero(m_sub_y)
         pixel_xy = cv2.countNonZero(cut_m)
@@ -68,13 +72,15 @@ def generate_crop(mask, frame, scale, model, cnt, bz):
         cut_c = cv2.bitwise_and(cut_f, cut_f, mask=cut_m)
         cut_c = cv2.resize(cut_c, scale, interpolation = cv2.INTER_CUBIC)
         cut_c = torch.from_numpy(np.transpose(cut_c, [2,0,1])).float()
-        output = model(cut_c, 1)
+        output = model(cut_c.unsqueeze(0), 1)
         pred = torch.argmax(output, dim=1)
         if pred == 1:
             # if we detect a ball, wrap up with bbox/circle
             ((x, y), r) = cv2.minEnclosingCircle(contour)
-            # TODO: Here we process volleyball with process_volleyball function
-            path_tracker, prev_bounding_box, bounding_box = \
+            [path_tracker, prev_bounding_box, bounding_box] = \
                 process_volleyball(path_tracker, bounding_box, prev_bounding_box, cnt, x, y, r)
-        cnt += 1
+            print("Ball detected for frame {}".format(cnt))
+
+    cnt += 1
+    print("{} complete!".format(cnt))
     return path_tracker, prev_bounding_box, bounding_box, cnt
